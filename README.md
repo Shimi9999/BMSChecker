@@ -10,3 +10,7 @@ Drag and drop bms file or folder
 
 ## License
 [LGPLv3](https://opensource.org/licenses/LGPL-3.0)
+
+## Credits
+[github.com/therecipe/qt](https://github.com/therecipe/qt)  
+Licensed under [GNU Lesser General Public License v3.0](https://opensource.org/licenses/LGPL-3.0)
