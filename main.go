@@ -46,28 +46,25 @@ func main() {
   base.Layout().AddWidget(progressSnake)
 
   openIcon := app.Style().StandardIcon(widgets.QStyle__SP_DialogOpenButton, nil, nil)
-  openButton := widgets.NewQPushButton3(openIcon, "Open", nil)
+  openButton := widgets.NewQPushButton3(openIcon, "", nil)
 	menu.Layout().AddWidget(openButton)
 
   pathInput := widgets.NewQLineEdit(nil)
 	pathInput.SetPlaceholderText("bms file/folder path")
 	menu.Layout().AddWidget(pathInput)
 
+  diffCheck := widgets.NewQRadioButton2("diff", nil)
+  menu.Layout().AddWidget(diffCheck)
+
   checkIcon := app.Style().StandardIcon(widgets.QStyle__SP_DialogApplyButton, nil, nil)
   checkButton := widgets.NewQPushButton3(checkIcon, "Check", nil)
 	menu.Layout().AddWidget(checkButton)
-
-  /*toolbar := window.AddToolBar3("menu")
-  toolbar.SetMovable(false)
-  toolbar.AddWidget(openButton)
-  toolbar.AddWidget(pathInput)
-  toolbar.AddWidget(checkButton)*/
 
   execCheck := func() {
     progressSnake.Show()
     base.SetEnabled(false)
     go func() {
-      log, err := checkBmsLog(pathInput.Text())
+      log, err := checkBmsLog(pathInput.Text(), diffCheck.IsChecked())
       if err != nil {
         logText.SetText(err.Error())
       } else {
@@ -110,7 +107,7 @@ func main() {
   widgets.QApplication_Exec()
 }
 
-func checkBmsLog(path string) (log string, _ error) {
+func checkBmsLog(path string, diff bool) (log string, _ error) {
   if checkbms.IsBmsDirectory(path) {
     bmsDirs, err := checkbms.ScanDirectory(path)
     if err != nil {
@@ -118,7 +115,7 @@ func checkBmsLog(path string) (log string, _ error) {
     }
     logs := []string{}
     for _, dir := range bmsDirs {
-      checkbms.CheckBmsDirectory(&dir, false)
+      checkbms.CheckBmsDirectory(&dir, diff)
       for _, bmsFile := range dir.BmsFiles {
         if len(bmsFile.Logs) > 0 {
           logs = append(logs, bmsFile.LogString(true))
