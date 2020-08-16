@@ -1,5 +1,5 @@
 # BMSChecker
-A tool that check bms file or folder. This allpication uses [checkbms](https://github.com/Shimi9999/checkbms) package.
+A tool that check bms file or folder. This application uses [checkbms](https://github.com/Shimi9999/checkbms) package.
 
 ## Download
 Latest Release [1.0.0](https://github.com/Shimi9999/BMSChecker/releases/download/1.0.0/BMSChecker_1.0.0.zip)
@@ -11,6 +11,6 @@ Drag and drop bms file or folder
 ## License
 [LGPLv3](https://opensource.org/licenses/LGPL-3.0)
 
-## Credits
-[github.com/therecipe/qt](https://github.com/therecipe/qt)  
+## Credit
+[therecipe/qt](https://github.com/therecipe/qt)  
 Licensed under [GNU Lesser General Public License v3.0](https://opensource.org/licenses/LGPL-3.0)
