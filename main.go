@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 	//"fmt"
+	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/Shimi9999/checkbms"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
@@ -60,6 +62,7 @@ func main() {
 	checkButton := widgets.NewQPushButton3(checkIcon, "Check", nil)
 	menu.Layout().AddWidget(checkButton)
 
+	setLogText := false
 	execCheck := func() {
 		progressSnake.Show()
 		base.SetEnabled(false)
@@ -69,11 +72,35 @@ func main() {
 				logText.SetText(err.Error())
 			} else {
 				logText.SetText(log)
+				setLogText = true
 			}
 			progressSnake.Hide()
 			base.SetEnabled(true)
 		}()
 	}
+
+	logText.ConnectTextChanged(func() {
+		if setLogText {
+			doc, err := goquery.NewDocumentFromReader(strings.NewReader(logText.ToHtml()))
+			if err != nil {
+				logText.SetText(err.Error())
+			}
+
+			doc.Find("p span").Each(func(i int, s *goquery.Selection) {
+				if strings.HasPrefix(s.Text(), "ERROR: ") {
+					s.SetHtml(`<span style="color: #ff0000">ERROR</span>` + s.Text()[len("ERROR"):])
+				} else if strings.HasPrefix(s.Text(), "WARNING: ") {
+					s.SetHtml(`<span style="color: #e56b00">WARNING</span>` + s.Text()[len("WARNING"):])
+				} else if strings.HasPrefix(s.Text(), "NOTICE: ") {
+					s.SetHtml(`<span style="color: #0000da">NOTICE</span>` + s.Text()[len("NOTICE"):])
+				}
+			})
+			setLogText = false
+
+			_html, _ := doc.Html()
+			logText.SetHtml(_html)
+		}
+	})
 
 	window.ConnectDragEnterEvent(func(e *gui.QDragEnterEvent) {
 		if e.MimeData().HasUrls() {
