@@ -2,7 +2,7 @@
 A tool that check bms file or folder. This application uses [checkbms](https://github.com/Shimi9999/checkbms) package.
 
 ## Download
-Latest Release [1.0.0](https://github.com/Shimi9999/BMSChecker/releases/download/1.0.0/BMSChecker_1.0.0.zip)
+Latest Release [1.0.1](https://github.com/Shimi9999/BMSChecker/releases/download/1.0.1/BMSChecker_1.0.1.zip)
 
 ## Usage
 Drag and drop bms file or folder
@@ -10,3 +10,6 @@ Drag and drop bms file or folder
 
 ## License
 [LGPLv3](https://opensource.org/licenses/LGPL-3.0)
+
+## Credits
+[license_library.txt](https://github.com/Shimi9999/BMSChecker/blob/master/license_library.txt)
