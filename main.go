@@ -55,7 +55,7 @@ func main() {
 	pathInput.SetPlaceholderText("bms file/folder path")
 	menu.Layout().AddWidget(pathInput)
 
-	diffCheck := widgets.NewQRadioButton2("diff", nil)
+	diffCheck := widgets.NewQCheckBox2("diff", nil)
 	menu.Layout().AddWidget(diffCheck)
 
 	checkIcon := app.Style().StandardIcon(widgets.QStyle__SP_DialogApplyButton, nil, nil)
