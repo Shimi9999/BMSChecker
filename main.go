@@ -46,17 +46,15 @@ func main() {
 	if language == "ja" {
 		enAct.SetChecked(true)
 	}
+	var changeLanguage func(lang string)
 	langActGroup.ConnectTriggered(func(action *widgets.QAction) {
 		switch action.Pointer() {
 		case enAct.Pointer():
 			language = "en"
-			setting.SetTitle("Setting")
-			languageMenu.SetTitle("Language") // TODO 他のテキストもまとめて関数化する
 		case jaAct.Pointer():
 			language = "ja"
-			setting.SetTitle("設定")
-			languageMenu.SetTitle("言語")
 		}
+		changeLanguage(language)
 	})
 	languageMenu.AddActions(langActGroup.Actions())
 
@@ -181,11 +179,12 @@ func main() {
 		}
 	})
 
+	//fileDialog := widgets.NewQFileDialog2(nil, "Open bms file/folder", pathInput.Text(), "bms files (*.bms *.bme *.bml *.pms)")
+	fileDialog := widgets.NewQFileDialog2(nil, "Open bms folder", "", "bms folder")
+	fileDialog.SetFileMode(widgets.QFileDialog__Directory)
+	//fileDialog.SetOption(widgets.QFileDialog__DontUseNativeDialog, true)
 	openButton.ConnectClicked(func(bool) {
-		//fileDialog := widgets.NewQFileDialog2(nil, "Open bms file/folder", pathInput.Text(), "bms files (*.bms *.bme *.bml *.pms)")
-		fileDialog := widgets.NewQFileDialog2(nil, "Open bms folder", pathInput.Text(), "bms folder")
-		fileDialog.SetFileMode(widgets.QFileDialog__Directory)
-		//fileDialog.SetOption(widgets.QFileDialog__DontUseNativeDialog, true)
+		fileDialog.SetDirectory(pathInput.Text())
 		if fileDialog.Exec() == int(widgets.QDialog__Accepted) {
 			pathInput.SetText(fileDialog.SelectedFiles()[0])
 			execCheck()
@@ -195,6 +194,27 @@ func main() {
 	checkButton.ConnectClicked(func(bool) {
 		execCheck()
 	})
+
+	changeLanguage = func(lang string) {
+		switch lang {
+		case "en":
+			setting.SetTitle("Setting")
+			languageMenu.SetTitle("Language")
+			logText.SetPlaceholderText("Drag and drop bms file/folder!")
+			pathInput.SetPlaceholderText("bms file/folder path")
+			diffCheck.SetText("diff")
+			checkButton.SetText("Check")
+			fileDialog.SetWindowTitle("Open bms folder")
+		case "ja":
+			setting.SetTitle("設定")
+			languageMenu.SetTitle("言語")
+			logText.SetPlaceholderText("BMSファイル/フォルダをドラッグ&ドロップ!")
+			pathInput.SetPlaceholderText("BMSファイル/フォルダ パス")
+			diffCheck.SetText("差分")
+			checkButton.SetText("チェック")
+			fileDialog.SetWindowTitle("BMSフォルダを開く")
+		}
+	}
 
 	window.Show()
 
