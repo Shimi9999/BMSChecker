@@ -14,6 +14,8 @@ import (
 
 func main() {
 	varsion := "1.3.0"
+	language := "en"
+
 	core.QCoreApplication_SetApplicationName("BMSChecker")
 	core.QCoreApplication_SetOrganizationName("Shimi9999")
 	core.QCoreApplication_SetAttribute(core.Qt__AA_EnableHighDpiScaling, true)
@@ -29,6 +31,34 @@ func main() {
 	base := widgets.NewQWidget(nil, 0)
 	base.SetLayout(widgets.NewQVBoxLayout())
 	window.SetCentralWidget(base)
+
+	setting := window.MenuBar().AddMenu2("Setting")
+	languageMenu := setting.AddMenu2("Language")
+	langActGroup := widgets.NewQActionGroup(nil)
+	langActGroup.SetExclusive(true)
+	enAct := langActGroup.AddAction2("English")
+	enAct.SetCheckable(true)
+	if language == "en" {
+		enAct.SetChecked(true)
+	}
+	jaAct := langActGroup.AddAction2("日本語")
+	jaAct.SetCheckable(true)
+	if language == "ja" {
+		enAct.SetChecked(true)
+	}
+	langActGroup.ConnectTriggered(func(action *widgets.QAction) {
+		switch action.Pointer() {
+		case enAct.Pointer():
+			language = "en"
+			setting.SetTitle("Setting")
+			languageMenu.SetTitle("Language") // TODO 他のテキストもまとめて関数化する
+		case jaAct.Pointer():
+			language = "ja"
+			setting.SetTitle("設定")
+			languageMenu.SetTitle("言語")
+		}
+	})
+	languageMenu.AddActions(langActGroup.Actions())
 
 	menu := widgets.NewQWidget(nil, 0)
 	menu.SetLayout(widgets.NewQHBoxLayout())
@@ -69,7 +99,7 @@ func main() {
 		progressSnake.Show()
 		base.SetEnabled(false)
 		go func() {
-			log, err := checkBmsLog(pathInput.Text(), diffCheck.IsChecked())
+			log, err := checkBmsLog(pathInput.Text(), language, diffCheck.IsChecked())
 			if err != nil {
 				logText.SetText(err.Error())
 			} else {
@@ -104,13 +134,26 @@ func main() {
 				logText.SetText(err.Error())
 			}
 
+			type levelColor struct {
+				Level_en string
+				Level_ja string
+				Color    string
+			}
+			levelColors := []levelColor{
+				{Level_en: "ERROR", Level_ja: "エラー", Color: "#ff0000"},
+				{Level_en: "WARNING", Level_ja: "警告", Color: "#e56b00"},
+				{Level_en: "NOTICE", Level_ja: "通知", Color: "#0000da"},
+			}
 			doc.Find("p span").Each(func(i int, s *goquery.Selection) {
-				if strings.HasPrefix(s.Text(), "ERROR: ") {
-					s.SetHtml(`<span style="color: #ff0000">ERROR</span>` + s.Text()[len("ERROR"):])
-				} else if strings.HasPrefix(s.Text(), "WARNING: ") {
-					s.SetHtml(`<span style="color: #e56b00">WARNING</span>` + s.Text()[len("WARNING"):])
-				} else if strings.HasPrefix(s.Text(), "NOTICE: ") {
-					s.SetHtml(`<span style="color: #0000da">NOTICE</span>` + s.Text()[len("NOTICE"):])
+				for _, lc := range levelColors {
+					level := lc.Level_en
+					if language == "ja" {
+						level = lc.Level_ja
+					}
+					if strings.HasPrefix(s.Text(), level+": ") {
+						s.SetHtml(`<span style="color: ` + lc.Color + `">` + level + `</span>` + s.Text()[len(level):])
+						break
+					}
 				}
 			})
 			setLogText = false
@@ -158,7 +201,7 @@ func main() {
 	widgets.QApplication_Exec()
 }
 
-func checkBmsLog(path string, diff bool) (log string, _ error) {
+func checkBmsLog(path, lang string, diff bool) (log string, _ error) {
 	if checkbms.IsBmsDirectory(path) {
 		bmsDirs, err := checkbms.ScanDirectory(path)
 		if err != nil {
@@ -169,11 +212,11 @@ func checkBmsLog(path string, diff bool) (log string, _ error) {
 			checkbms.CheckBmsDirectory(&dir, diff)
 			for _, bmsFile := range dir.BmsFiles {
 				if len(bmsFile.Logs) > 0 {
-					logs = append(logs, bmsFile.LogString(true))
+					logs = append(logs, bmsFile.LogStringWithLang(true, lang))
 				}
 			}
 			if len(dir.Logs) > 0 {
-				logs = append(logs, dir.LogString(true))
+				logs = append(logs, dir.LogStringWithLang(true, lang))
 			}
 		}
 		for i, l := range logs {
@@ -192,7 +235,7 @@ func checkBmsLog(path string, diff bool) (log string, _ error) {
 		}
 		checkbms.CheckBmsFile(bmsFile)
 		if len(bmsFile.Logs) > 0 {
-			log = bmsFile.LogString(true)
+			log = bmsFile.LogStringWithLang(true, lang)
 		}
 	} else {
 		log = "Error: Not bms file/folder"
