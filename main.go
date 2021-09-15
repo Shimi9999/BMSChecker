@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	//"fmt"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	varsion := "1.3.0"
 	core.QCoreApplication_SetApplicationName("BMSChecker")
 	core.QCoreApplication_SetOrganizationName("Shimi9999")
 	core.QCoreApplication_SetAttribute(core.Qt__AA_EnableHighDpiScaling, true)
@@ -20,8 +21,9 @@ func main() {
 	app := widgets.NewQApplication(len(os.Args), os.Args)
 
 	window := widgets.NewQMainWindow(nil, 0)
-	window.SetMinimumSize2(700, 450)
-	window.SetWindowTitle("BMSChecker")
+	window.SetWindowTitle(fmt.Sprintf("BMSChecker %s", varsion))
+	window.Resize2(700, 450)
+	window.SetMinimumSize2(300, 250)
 	window.SetAcceptDrops(true)
 
 	base := widgets.NewQWidget(nil, 0)
