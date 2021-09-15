@@ -81,6 +81,22 @@ func main() {
 		}()
 	}
 
+	execDiffBmsDir := func(path1, path2 string) {
+		progressSnake.Show()
+		base.SetEnabled(false)
+		go func() {
+			log, err := diffBmsDirLog(path1, path2)
+			if err != nil {
+				logText.SetText(err.Error())
+			} else {
+				logText.SetText(log)
+				setLogText = true
+			}
+			progressSnake.Hide()
+			base.SetEnabled(true)
+		}()
+	}
+
 	logText.ConnectTextChanged(func() {
 		if setLogText {
 			doc, err := goquery.NewDocumentFromReader(strings.NewReader(logText.ToHtml()))
@@ -111,8 +127,14 @@ func main() {
 	})
 	window.ConnectDropEvent(func(e *gui.QDropEvent) {
 		if e.MimeData().HasUrls() {
-			pathInput.SetText(e.MimeData().Urls()[0].ToLocalFile())
-			execCheck()
+			switch len(e.MimeData().Urls()) {
+			case 1:
+				pathInput.SetText(e.MimeData().Urls()[0].ToLocalFile())
+				execCheck()
+			case 2:
+				path1, path2 := e.MimeData().Urls()[0].ToLocalFile(), e.MimeData().Urls()[1].ToLocalFile()
+				execDiffBmsDir(path1, path2)
+			}
 		}
 	})
 
@@ -161,8 +183,11 @@ func checkBmsLog(path string, diff bool) (log string, _ error) {
 			log += l + "\n"
 		}
 	} else if checkbms.IsBmsFile(path) {
-		bmsFile, err := checkbms.ScanBmsFile(path)
+		bmsFile, err := checkbms.ReadBmsFile(path)
 		if err != nil {
+			return "", err
+		}
+		if err := bmsFile.ScanBmsFile(); err != nil {
 			return "", err
 		}
 		checkbms.CheckBmsFile(bmsFile)
@@ -177,5 +202,19 @@ func checkBmsLog(path string, diff bool) (log string, _ error) {
 		log = "All OK"
 	}
 
+	return log, nil
+}
+
+func diffBmsDirLog(path1, path2 string) (log string, _ error) {
+	difflogs, err := checkbms.DiffBmsDirectories(path1, path2)
+	if err != nil {
+		return "", err
+	}
+	for _, difflog := range difflogs {
+		log += difflog + "\n"
+	}
+	if log == "" {
+		log = fmt.Sprintf("OK, no difference:\n  %s\n  %s", path1, path2)
+	}
 	return log, nil
 }
