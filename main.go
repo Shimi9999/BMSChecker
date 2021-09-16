@@ -31,8 +31,8 @@ type BmsCheckerWindow struct {
 	checkButton *widgets.QPushButton
 	fileDialog  *widgets.QFileDialog
 
-	logText    *widgets.QTextEdit
-	setLogText bool
+	logText      *widgets.QTextEdit
+	isLogTextSet bool
 
 	progressSnake *widgets.QLabel
 }
@@ -164,10 +164,10 @@ func (w *BmsCheckerWindow) logTextArea() {
 	w.logText.SetPlaceholderText("Drag and drop bms file/folder!")
 	w.base.Layout().AddWidget(w.logText)
 
-	w.setLogText = false
+	w.isLogTextSet = false
 
 	w.logText.ConnectTextChanged(func() {
-		if w.setLogText {
+		if w.isLogTextSet {
 			doc, err := goquery.NewDocumentFromReader(strings.NewReader(w.logText.ToHtml()))
 			if err != nil {
 				w.logText.SetText(err.Error())
@@ -195,7 +195,7 @@ func (w *BmsCheckerWindow) logTextArea() {
 					}
 				}
 			})
-			w.setLogText = false
+			w.isLogTextSet = false
 
 			_html, _ := doc.Html()
 			w.logText.SetHtml(_html)
@@ -212,7 +212,7 @@ func (w *BmsCheckerWindow) execCheck() {
 			w.logText.SetText(err.Error())
 		} else {
 			w.logText.SetText(log)
-			w.setLogText = true
+			w.isLogTextSet = true
 		}
 		w.progressSnake.Hide()
 		w.base.SetEnabled(true)
@@ -228,7 +228,7 @@ func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 			w.logText.SetText(err.Error())
 		} else {
 			w.logText.SetText(log)
-			w.setLogText = true
+			w.isLogTextSet = true
 		}
 		w.progressSnake.Hide()
 		w.base.SetEnabled(true)
