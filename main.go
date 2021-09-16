@@ -15,11 +15,11 @@ import (
 type BmsCheckerWindow struct {
 	widgets.QMainWindow
 
-	language string
+	setting *Setting
 
 	base *widgets.QWidget
 
-	setting      *widgets.QMenu
+	settingMenu  *widgets.QMenu
 	languageMenu *widgets.QMenu
 	actionEn     *widgets.QAction
 	actionJa     *widgets.QAction
@@ -41,7 +41,6 @@ var app *widgets.QApplication
 
 func main() {
 	varsion := "1.3.0"
-	defaultLanguage := "en" // TODO Jsonの設定ファイルを生成し、そこから言語設定を取得する
 
 	core.QCoreApplication_SetApplicationName("BMSChecker")
 	core.QCoreApplication_SetOrganizationName("Shimi9999")
@@ -71,7 +70,9 @@ func main() {
 	window.progressSnake.Hide()
 	window.base.Layout().AddWidget(window.progressSnake)
 
-	window.setLanguage(defaultLanguage)
+	window.setting, _ = ReadSetting()
+
+	window.setLanguage(window.setting.Language)
 
 	window.ConnectDragEnterEvent(func(e *gui.QDragEnterEvent) {
 		if e.MimeData().HasUrls() {
@@ -97,8 +98,8 @@ func main() {
 }
 
 func (w *BmsCheckerWindow) menuBar() {
-	w.setting = w.MenuBar().AddMenu2("Setting")
-	w.languageMenu = w.setting.AddMenu2("Language")
+	w.settingMenu = w.MenuBar().AddMenu2("Setting")
+	w.languageMenu = w.settingMenu.AddMenu2("Language")
 	langActGroup := widgets.NewQActionGroup(nil)
 	langActGroup.SetExclusive(true)
 	w.actionEn = langActGroup.AddAction2("English")
@@ -186,7 +187,7 @@ func (w *BmsCheckerWindow) logTextArea() {
 			doc.Find("p span").Each(func(i int, s *goquery.Selection) {
 				for _, lc := range levelColors {
 					level := lc.Level_en
-					if w.language == "ja" {
+					if w.setting.Language == "ja" {
 						level = lc.Level_ja
 					}
 					if strings.HasPrefix(s.Text(), level+": ") {
@@ -207,7 +208,7 @@ func (w *BmsCheckerWindow) execCheck() {
 	w.progressSnake.Show()
 	w.base.SetEnabled(false)
 	go func() {
-		log, err := checkBmsLog(w.pathInput.Text(), w.language, w.diffCheck.IsChecked())
+		log, err := checkBmsLog(w.pathInput.Text(), w.setting.Language, w.diffCheck.IsChecked())
 		if err != nil {
 			w.logText.SetText(err.Error())
 		} else {
@@ -236,10 +237,10 @@ func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 }
 
 func (w *BmsCheckerWindow) setLanguage(lang string) {
-	w.language = lang
-	switch w.language {
+	w.setting.Language = lang
+	switch w.setting.Language {
 	case "en":
-		w.setting.SetTitle("Setting")
+		w.settingMenu.SetTitle("Setting")
 		w.languageMenu.SetTitle("Language")
 		w.logText.SetPlaceholderText("Drag and drop bms file/folder!")
 		w.pathInput.SetPlaceholderText("bms file/folder path")
@@ -249,7 +250,7 @@ func (w *BmsCheckerWindow) setLanguage(lang string) {
 
 		w.actionEn.SetChecked(true)
 	case "ja":
-		w.setting.SetTitle("設定")
+		w.settingMenu.SetTitle("設定")
 		w.languageMenu.SetTitle("言語")
 		w.logText.SetPlaceholderText("BMSファイル/フォルダをドラッグ&ドロップ!")
 		w.pathInput.SetPlaceholderText("BMSファイル/フォルダ パス")
@@ -259,6 +260,7 @@ func (w *BmsCheckerWindow) setLanguage(lang string) {
 
 		w.actionJa.SetChecked(true)
 	}
+	WriteSetting(w.setting)
 }
 
 func checkBmsLog(path, lang string, diff bool) (log string, _ error) {
