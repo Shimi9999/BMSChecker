@@ -206,7 +206,7 @@ func (w *BmsCheckerWindow) logTextArea() {
 
 func (w *BmsCheckerWindow) execCheck() {
 	w.progressSnake.Show()
-	w.base.SetEnabled(false)
+	w.SetEnabled(false)
 	go func() {
 		log, err := checkBmsLog(w.pathInput.Text(), w.setting.Language, w.diffCheck.IsChecked())
 		if err != nil {
@@ -216,13 +216,13 @@ func (w *BmsCheckerWindow) execCheck() {
 			w.isLogTextSet = true
 		}
 		w.progressSnake.Hide()
-		w.base.SetEnabled(true)
+		w.SetEnabled(true)
 	}()
 }
 
 func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 	w.progressSnake.Show()
-	w.base.SetEnabled(false)
+	w.SetEnabled(false)
 	go func() {
 		log, err := diffBmsDirLog(path1, path2)
 		if err != nil {
@@ -232,7 +232,7 @@ func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 			w.isLogTextSet = true
 		}
 		w.progressSnake.Hide()
-		w.base.SetEnabled(true)
+		w.SetEnabled(true)
 	}()
 }
 
