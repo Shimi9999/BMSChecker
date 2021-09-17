@@ -33,6 +33,7 @@ type BmsCheckerWindow struct {
 
 	logText      *widgets.QTextEdit
 	isLogTextSet bool
+	logSource    interface{}
 
 	progressSnake *widgets.QLabel
 }
@@ -208,12 +209,13 @@ func (w *BmsCheckerWindow) execCheck() {
 	w.progressSnake.Show()
 	w.SetEnabled(false)
 	go func() {
-		log, err := checkBmsLog(w.pathInput.Text(), w.setting.Language, w.diffCheck.IsChecked())
+		log, logSource, err := checkBmsLog(w.pathInput.Text(), w.setting.Language, w.diffCheck.IsChecked())
 		if err != nil {
 			w.logText.SetText(err.Error())
 		} else {
-			w.logText.SetText(log)
 			w.isLogTextSet = true
+			w.logText.SetText(log)
+			w.logSource = logSource
 		}
 		w.progressSnake.Hide()
 		w.SetEnabled(true)
@@ -228,8 +230,9 @@ func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 		if err != nil {
 			w.logText.SetText(err.Error())
 		} else {
-			w.logText.SetText(log)
 			w.isLogTextSet = true
+			w.logText.SetText(log)
+			w.logSource = log
 		}
 		w.progressSnake.Hide()
 		w.SetEnabled(true)
@@ -260,54 +263,86 @@ func (w *BmsCheckerWindow) setLanguage(lang string) {
 
 		w.actionJa.SetChecked(true)
 	}
+	w.updateLogText()
 	WriteSetting(w.setting)
 }
 
-func checkBmsLog(path, lang string, diff bool) (log string, _ error) {
+func (w *BmsCheckerWindow) updateLogText() {
+	var updatedLog string
+
+	switch w.logSource.(type) {
+	case string:
+		// languageで変化しないのでスルーしてOK？
+		//updatedLog = w.logSource.(string)
+	case *checkbms.Directory:
+		bmsDir := w.logSource.(*checkbms.Directory)
+		updatedLog = bmsDirectoryLog(bmsDir, w.setting.Language)
+	case *checkbms.BmsFile:
+		bmsFile := w.logSource.(*checkbms.BmsFile)
+		updatedLog = bmsFileLog(bmsFile, w.setting.Language)
+	}
+
+	if updatedLog != "" {
+		w.isLogTextSet = true
+		w.logText.SetText(updatedLog)
+	}
+}
+
+func checkBmsLog(path, lang string, diff bool) (log string, logSource interface{}, _ error) {
 	if checkbms.IsBmsDirectory(path) {
-		bmsDirs, err := checkbms.ScanDirectory(path)
+		bmsDir, err := checkbms.ScanBmsDirectory(path, true, true)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
-		logs := []string{}
-		for _, dir := range bmsDirs {
-			checkbms.CheckBmsDirectory(&dir, diff)
-			for _, bmsFile := range dir.BmsFiles {
-				if len(bmsFile.Logs) > 0 {
-					logs = append(logs, bmsFile.LogStringWithLang(true, lang))
-				}
-			}
-			if len(dir.Logs) > 0 {
-				logs = append(logs, dir.LogStringWithLang(true, lang))
-			}
-		}
-		for i, l := range logs {
-			if i != 0 {
-				log += "\n"
-			}
-			log += l + "\n"
-		}
+		checkbms.CheckBmsDirectory(bmsDir, diff)
+		log = bmsDirectoryLog(bmsDir, lang)
+		return log, bmsDir, nil
 	} else if checkbms.IsBmsFile(path) {
 		bmsFile, err := checkbms.ReadBmsFile(path)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 		if err := bmsFile.ScanBmsFile(); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		checkbms.CheckBmsFile(bmsFile)
-		if len(bmsFile.Logs) > 0 {
-			log = bmsFile.LogStringWithLang(true, lang)
-		}
-	} else {
-		log = "Error: Not bms file/folder"
+		log = bmsFileLog(bmsFile, lang)
+		return log, bmsFile, nil
 	}
+	log = "Error: Not bms file/folder"
+	return log, log, nil
+}
 
+func bmsDirectoryLog(bmsDir *checkbms.Directory, lang string) (log string) {
+	logs := []string{}
+	for _, bmsFile := range bmsDir.BmsFiles {
+		if len(bmsFile.Logs) > 0 {
+			logs = append(logs, bmsFile.LogStringWithLang(true, lang))
+		}
+	}
+	if len(bmsDir.Logs) > 0 {
+		logs = append(logs, bmsDir.LogStringWithLang(true, lang))
+	}
+	for i, l := range logs {
+		if i != 0 {
+			log += "\n"
+		}
+		log += l + "\n"
+	}
 	if log == "" {
 		log = "All OK"
 	}
+	return log
+}
 
-	return log, nil
+func bmsFileLog(bmsFile *checkbms.BmsFile, lang string) (log string) {
+	if len(bmsFile.Logs) > 0 {
+		log = bmsFile.LogStringWithLang(true, lang)
+	}
+	if log == "" {
+		log = "All OK"
+	}
+	return log
 }
 
 func diffBmsDirLog(path1, path2 string) (log string, _ error) {
