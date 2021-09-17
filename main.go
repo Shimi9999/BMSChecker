@@ -226,13 +226,13 @@ func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 	w.progressSnake.Show()
 	w.SetEnabled(false)
 	go func() {
-		log, err := diffBmsDirLog(path1, path2)
+		log, result, err := diffBmsDirLog(path1, path2, w.setting.Language)
 		if err != nil {
 			w.logText.SetText(err.Error())
 		} else {
 			w.isLogTextSet = true
 			w.logText.SetText(log)
-			w.logSource = log
+			w.logSource = result
 		}
 		w.progressSnake.Hide()
 		w.SetEnabled(true)
@@ -280,6 +280,9 @@ func (w *BmsCheckerWindow) updateLogText() {
 	case *checkbms.BmsFile:
 		bmsFile := w.logSource.(*checkbms.BmsFile)
 		updatedLog = bmsFileLog(bmsFile, w.setting.Language)
+	case *checkbms.DiffBmsDirResult:
+		result := w.logSource.(*checkbms.DiffBmsDirResult)
+		updatedLog = diffBmsDirResultLog(result, w.setting.Language)
 	}
 
 	if updatedLog != "" {
@@ -345,16 +348,19 @@ func bmsFileLog(bmsFile *checkbms.BmsFile, lang string) (log string) {
 	return log
 }
 
-func diffBmsDirLog(path1, path2 string) (log string, _ error) {
-	difflogs, err := checkbms.DiffBmsDirectories(path1, path2)
+func diffBmsDirLog(path1, path2, lang string) (log string, logSource interface{}, _ error) {
+	result, err := checkbms.DiffBmsDirectories(path1, path2)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	for _, difflog := range difflogs {
-		log += difflog + "\n"
-	}
+	log = diffBmsDirResultLog(result, lang)
+	return log, result, nil
+}
+
+func diffBmsDirResultLog(result *checkbms.DiffBmsDirResult, lang string) (log string) {
+	log = result.LogStringWithLang(lang)
 	if log == "" {
-		log = fmt.Sprintf("OK, no difference:\n  %s\n  %s", path1, path2)
+		log = fmt.Sprintf("OK, no difference:\n  %s\n  %s", result.DirPath1, result.DirPath2)
 	}
-	return log, nil
+	return log
 }
