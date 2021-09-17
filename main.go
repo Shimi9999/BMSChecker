@@ -85,7 +85,7 @@ func main() {
 			switch len(e.MimeData().Urls()) {
 			case 1:
 				window.pathInput.SetText(e.MimeData().Urls()[0].ToLocalFile())
-				window.execCheck()
+				window.execCheckBmsOrDirectory()
 			case 2:
 				path1, path2 := e.MimeData().Urls()[0].ToLocalFile(), e.MimeData().Urls()[1].ToLocalFile()
 				window.execDiffBmsDir(path1, path2)
@@ -148,12 +148,12 @@ func (w *BmsCheckerWindow) mainMenu() {
 		w.fileDialog.SetDirectory(w.pathInput.Text())
 		if w.fileDialog.Exec() == int(widgets.QDialog__Accepted) {
 			w.pathInput.SetText(w.fileDialog.SelectedFiles()[0])
-			w.execCheck()
+			w.execCheckBmsOrDirectory()
 		}
 	})
 
 	w.checkButton.ConnectClicked(func(bool) {
-		w.execCheck()
+		w.execCheckBmsOrDirectory()
 	})
 }
 
@@ -205,38 +205,34 @@ func (w *BmsCheckerWindow) logTextArea() {
 	})
 }
 
-func (w *BmsCheckerWindow) execCheck() {
+func (w *BmsCheckerWindow) execCheckFunction(execFunc func() (interface{}, error)) {
 	w.progressSnake.Show()
 	w.SetEnabled(false)
 	go func() {
-		log, logSource, err := checkBmsLog(w.pathInput.Text(), w.setting.Language, w.diffCheck.IsChecked())
+		logSource, err := execFunc()
 		if err != nil {
 			w.logText.SetText(err.Error())
 		} else {
-			w.isLogTextSet = true
-			w.logText.SetText(log)
 			w.logSource = logSource
+			w.updateLogText()
 		}
 		w.progressSnake.Hide()
 		w.SetEnabled(true)
 	}()
 }
 
+func (w *BmsCheckerWindow) execCheckBmsOrDirectory() {
+	checkFunc := func() (interface{}, error) {
+		return checkBmsOrDirectory(w.pathInput.Text(), w.setting.Language, w.diffCheck.IsChecked())
+	}
+	w.execCheckFunction(checkFunc)
+}
+
 func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
-	w.progressSnake.Show()
-	w.SetEnabled(false)
-	go func() {
-		log, result, err := diffBmsDirLog(path1, path2, w.setting.Language)
-		if err != nil {
-			w.logText.SetText(err.Error())
-		} else {
-			w.isLogTextSet = true
-			w.logText.SetText(log)
-			w.logSource = result
-		}
-		w.progressSnake.Hide()
-		w.SetEnabled(true)
-	}()
+	diffFunc := func() (interface{}, error) {
+		return checkbms.DiffBmsDirectories(path1, path2)
+	}
+	w.execCheckFunction(diffFunc)
 }
 
 func (w *BmsCheckerWindow) setLanguage(lang string) {
@@ -272,8 +268,7 @@ func (w *BmsCheckerWindow) updateLogText() {
 
 	switch w.logSource.(type) {
 	case string:
-		// languageで変化しないのでスルーしてOK？
-		//updatedLog = w.logSource.(string)
+		updatedLog = w.logSource.(string)
 	case *checkbms.Directory:
 		bmsDir := w.logSource.(*checkbms.Directory)
 		updatedLog = bmsDirectoryLog(bmsDir, w.setting.Language)
@@ -291,29 +286,26 @@ func (w *BmsCheckerWindow) updateLogText() {
 	}
 }
 
-func checkBmsLog(path, lang string, diff bool) (log string, logSource interface{}, _ error) {
+func checkBmsOrDirectory(path, lang string, diff bool) (logSource interface{}, _ error) {
 	if checkbms.IsBmsDirectory(path) {
 		bmsDir, err := checkbms.ScanBmsDirectory(path, true, true)
 		if err != nil {
-			return "", nil, err
+			return nil, err
 		}
 		checkbms.CheckBmsDirectory(bmsDir, diff)
-		log = bmsDirectoryLog(bmsDir, lang)
-		return log, bmsDir, nil
+		return bmsDir, nil
 	} else if checkbms.IsBmsFile(path) {
 		bmsFile, err := checkbms.ReadBmsFile(path)
 		if err != nil {
-			return "", nil, err
+			return nil, err
 		}
 		if err := bmsFile.ScanBmsFile(); err != nil {
-			return "", nil, err
+			return nil, err
 		}
 		checkbms.CheckBmsFile(bmsFile)
-		log = bmsFileLog(bmsFile, lang)
-		return log, bmsFile, nil
+		return bmsFile, nil
 	}
-	log = "Error: Not bms file/folder"
-	return log, log, nil
+	return nil, fmt.Errorf("Error: Not bms file/folder")
 }
 
 func bmsDirectoryLog(bmsDir *checkbms.Directory, lang string) (log string) {
@@ -346,15 +338,6 @@ func bmsFileLog(bmsFile *checkbms.BmsFile, lang string) (log string) {
 		log = "All OK"
 	}
 	return log
-}
-
-func diffBmsDirLog(path1, path2, lang string) (log string, logSource interface{}, _ error) {
-	result, err := checkbms.DiffBmsDirectories(path1, path2)
-	if err != nil {
-		return "", nil, err
-	}
-	log = diffBmsDirResultLog(result, lang)
-	return log, result, nil
 }
 
 func diffBmsDirResultLog(result *checkbms.DiffBmsDirResult, lang string) (log string) {
