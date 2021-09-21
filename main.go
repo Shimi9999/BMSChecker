@@ -38,6 +38,21 @@ type BmsCheckerWindow struct {
 	progressSnake *widgets.QLabel
 }
 
+type multiLangString struct {
+	en string
+	ja string
+}
+
+func (m multiLangString) string(lang string) string {
+	switch lang {
+	case "en":
+		return m.en
+	case "ja":
+		return m.ja
+	}
+	return ""
+}
+
 var app *widgets.QApplication
 
 func main() {
@@ -89,6 +104,12 @@ func main() {
 			case 2:
 				path1, path2 := e.MimeData().Urls()[0].ToLocalFile(), e.MimeData().Urls()[1].ToLocalFile()
 				window.execDiffBmsDir(path1, path2)
+			default:
+				tooMamyFileMessage := multiLangString{
+					en: "ERROR: Too many file. Please drop one bms file/folder or two bms folders.",
+					ja: "エラー: ファイルが多すぎます。1個のBMSファイル/フォルダか、2個のBMSフォルダをドロップしてください。",
+				}
+				window.setLogText(&tooMamyFileMessage)
 			}
 		}
 	})
@@ -172,7 +193,7 @@ func (w *BmsCheckerWindow) logTextArea() {
 		if w.isLogTextSet {
 			doc, err := goquery.NewDocumentFromReader(strings.NewReader(w.logText.ToHtml()))
 			if err != nil {
-				w.logText.SetText(err.Error())
+				w.setLogText(err.Error())
 			}
 
 			type levelColor struct {
@@ -211,10 +232,13 @@ func (w *BmsCheckerWindow) execCheckFunction(execFunc func() (interface{}, error
 	go func() {
 		logSource, err := execFunc()
 		if err != nil {
-			w.logText.SetText(err.Error())
+			if logSource != nil {
+				w.setLogText(logSource)
+			} else {
+				w.setLogText(err.Error())
+			}
 		} else {
-			w.logSource = logSource
-			w.updateLogText()
+			w.setLogText(logSource)
 		}
 		w.progressSnake.Hide()
 		w.SetEnabled(true)
@@ -230,6 +254,24 @@ func (w *BmsCheckerWindow) execCheckBmsOrDirectory() {
 
 func (w *BmsCheckerWindow) execDiffBmsDir(path1, path2 string) {
 	diffFunc := func() (interface{}, error) {
+		notBmsDirPaths := []string{}
+		for _, path := range [2]string{path1, path2} {
+			if !checkbms.IsBmsDirectory(path) {
+				notBmsDirPaths = append(notBmsDirPaths, path)
+			}
+		}
+		if len(notBmsDirPaths) > 0 {
+			var notBmsFolderMessages multiLangString
+			for i, notBmsPath := range notBmsDirPaths {
+				newline := ""
+				if i > 0 {
+					newline = "\n"
+				}
+				notBmsFolderMessages.en += newline + "ERROR: Not bms folder: " + notBmsPath
+				notBmsFolderMessages.ja += newline + "エラー: BMSフォルダではありません: " + notBmsPath
+			}
+			return &notBmsFolderMessages, fmt.Errorf(notBmsFolderMessages.string(w.setting.Language))
+		}
 		return checkbms.DiffBmsDirectories(path1, path2)
 	}
 	w.execCheckFunction(diffFunc)
@@ -263,12 +305,20 @@ func (w *BmsCheckerWindow) setLanguage(lang string) {
 	WriteSetting(w.setting)
 }
 
+func (w *BmsCheckerWindow) setLogText(logSource interface{}) {
+	w.logSource = logSource
+	w.updateLogText()
+}
+
 func (w *BmsCheckerWindow) updateLogText() {
 	var updatedLog string
 
 	switch w.logSource.(type) {
 	case string:
 		updatedLog = w.logSource.(string)
+	case *multiLangString:
+		str := w.logSource.(*multiLangString)
+		updatedLog = str.string(w.setting.Language)
 	case *checkbms.Directory:
 		bmsDir := w.logSource.(*checkbms.Directory)
 		updatedLog = bmsDirectoryLog(bmsDir, w.setting.Language)
@@ -305,7 +355,11 @@ func checkBmsOrDirectory(path, lang string, diff bool) (logSource interface{}, _
 		checkbms.CheckBmsFile(bmsFile)
 		return bmsFile, nil
 	}
-	return nil, fmt.Errorf("Error: Not bms file/folder")
+	notBmsMessage := multiLangString{
+		en: "ERROR: Not bms file/folder",
+		ja: "エラー: BMSファイル/フォルダではありません",
+	}
+	return &notBmsMessage, fmt.Errorf(notBmsMessage.string(lang))
 }
 
 func bmsDirectoryLog(bmsDir *checkbms.Directory, lang string) (log string) {
@@ -343,7 +397,11 @@ func bmsFileLog(bmsFile *checkbms.BmsFile, lang string) (log string) {
 func diffBmsDirResultLog(result *checkbms.DiffBmsDirResult, lang string) (log string) {
 	log = result.LogStringWithLang(lang)
 	if log == "" {
-		log = fmt.Sprintf("OK, no difference:\n  %s\n  %s", result.DirPath1, result.DirPath2)
+		noDifferenceMessage := multiLangString{
+			en: fmt.Sprintf("OK, no difference:\n  %s\n  %s", result.DirPath1, result.DirPath2),
+			ja: fmt.Sprintf("OK、違いはありません:\n  %s\n  %s", result.DirPath1, result.DirPath2),
+		}
+		log = noDifferenceMessage.string(lang)
 	}
 	return log
 }
