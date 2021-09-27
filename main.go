@@ -325,6 +325,9 @@ func (w *BmsCheckerWindow) updateLogText() {
 	case *checkbms.BmsFile:
 		bmsFile := w.logSource.(*checkbms.BmsFile)
 		updatedLog = bmsFileLog(bmsFile, w.setting.Language)
+	case *checkbms.BmsonFile:
+		bmsonFile := w.logSource.(*checkbms.BmsonFile)
+		updatedLog = bmsonFileLog(bmsonFile, w.setting.Language)
 	case *checkbms.DiffBmsDirResult:
 		result := w.logSource.(*checkbms.DiffBmsDirResult)
 		updatedLog = diffBmsDirResultLog(result, w.setting.Language)
@@ -345,15 +348,25 @@ func checkBmsOrDirectory(path, lang string, diff bool) (logSource interface{}, _
 		checkbms.CheckBmsDirectory(bmsDir, diff)
 		return bmsDir, nil
 	} else if checkbms.IsBmsFile(path) {
-		bmsFile, err := checkbms.ReadBmsFile(path)
+		bmsFileBase, err := checkbms.ReadBmsFileBase(path)
 		if err != nil {
 			return nil, err
 		}
-		if err := bmsFile.ScanBmsFile(); err != nil {
-			return nil, err
+		if checkbms.IsBmsonFile(path) {
+			bmsonFile := checkbms.NewBmsonFile(bmsFileBase)
+			if err = bmsonFile.ScanBmsonFile(); err != nil {
+				return nil, err
+			}
+			checkbms.CheckBmsonFile(bmsonFile)
+			return bmsonFile, nil
+		} else {
+			bmsFile := checkbms.NewBmsFile(bmsFileBase)
+			if err := bmsFile.ScanBmsFile(); err != nil {
+				return nil, err
+			}
+			checkbms.CheckBmsFile(bmsFile)
+			return bmsFile, nil
 		}
-		checkbms.CheckBmsFile(bmsFile)
-		return bmsFile, nil
 	}
 	notBmsMessage := multiLangString{
 		en: "ERROR: Not bms file/folder",
@@ -367,6 +380,11 @@ func bmsDirectoryLog(bmsDir *checkbms.Directory, lang string) (log string) {
 	for _, bmsFile := range bmsDir.BmsFiles {
 		if len(bmsFile.Logs) > 0 {
 			logs = append(logs, bmsFile.LogStringWithLang(true, lang))
+		}
+	}
+	for _, bmsonFile := range bmsDir.BmsonFiles {
+		if len(bmsonFile.Logs) > 0 {
+			logs = append(logs, bmsonFile.LogStringWithLang(true, lang))
 		}
 	}
 	if len(bmsDir.Logs) > 0 {
@@ -387,6 +405,16 @@ func bmsDirectoryLog(bmsDir *checkbms.Directory, lang string) (log string) {
 func bmsFileLog(bmsFile *checkbms.BmsFile, lang string) (log string) {
 	if len(bmsFile.Logs) > 0 {
 		log = bmsFile.LogStringWithLang(true, lang)
+	}
+	if log == "" {
+		log = "All OK"
+	}
+	return log
+}
+
+func bmsonFileLog(bmsonFile *checkbms.BmsonFile, lang string) (log string) {
+	if len(bmsonFile.Logs) > 0 {
+		log = bmsonFile.LogStringWithLang(true, lang)
 	}
 	if log == "" {
 		log = "All OK"
