@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/Shimi9999/checkbms"
@@ -206,18 +207,24 @@ func (w *BmsCheckerWindow) logTextArea() {
 				{Level_en: "WARNING", Level_ja: "警告", Color: "#e56b00"},
 				{Level_en: "NOTICE", Level_ja: "通知", Color: "#0000da"},
 			}
-			doc.Find("p span").Each(func(i int, s *goquery.Selection) {
-				for _, lc := range levelColors {
-					level := lc.Level_en
-					if w.setting.Language == "ja" {
-						level = lc.Level_ja
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				doc.Find("p span").Each(func(i int, s *goquery.Selection) {
+					for _, lc := range levelColors {
+						level := lc.Level_en
+						if w.setting.Language == "ja" {
+							level = lc.Level_ja
+						}
+						if strings.HasPrefix(s.Text(), level+": ") {
+							s.SetHtml(`<span style="color: ` + lc.Color + `">` + level + `</span>` + s.Text()[len(level):])
+							break
+						}
 					}
-					if strings.HasPrefix(s.Text(), level+": ") {
-						s.SetHtml(`<span style="color: ` + lc.Color + `">` + level + `</span>` + s.Text()[len(level):])
-						break
-					}
-				}
-			})
+				})
+			}()
+			wg.Wait()
 			w.isLogTextSet = false
 
 			_html, _ := doc.Html()
